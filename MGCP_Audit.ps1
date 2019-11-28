@@ -11,6 +11,13 @@ foreach ($MGCP_Project in $projects.project_id) {
 	
 	#Set GPC Project
 	gcloud config set project $MGCP_Project
+	
+	#Output compute regions to a tempoary file, de-duplicate and create new file to Destination Directory
+	gcloud compute instances list --format="csv(zone)" > "$($MGCP_Project)_ZonesTemp.csv"
+	$ZonesTemp = "./$($MGCP_Project)_ZonesTemp.csv"
+	$RegionsTemp = Import-Csv $ZonesTemp | Sort-Object zone -Unique
+	$RegionsTemp | Export-Csv "$MGCP_Project`_Zones.csv" -NoTypeInformation
+	$RegionsCsv = "$(($RegionsTemp[1].zone -split '-')[0])-$(($RegionsTemp[1].zone -split '-')[1])"	
 
 	#Output Global Quotas to Destination Directory
 	gcloud compute project-info describe --flatten="quotas[]" --format="csv(name,quotas.metric,quotas.limit,quotas.usage)" > $MGCP_Project`_GlobalQuotas.csv
@@ -37,7 +44,7 @@ foreach ($MGCP_Project in $projects.project_id) {
 	gcloud compute commitments list --format="csv(name,region,end_TimeStamp,status)" > $MGCP_Project`_CommitedUsageDiscount.csv
 	
 	#Output Compute Instances to Destination Directory
-	gcloud compute instances list --format="csv(name,status,zone,machine_type,preemptible)" $MGCP_Project`_ComputeInstances.csv
+	gcloud compute instances list --format="csv(name,status,zone,machine_type,preemptible)" > $MGCP_Project`_ComputeInstances.csv
 }
 
 #SQL
