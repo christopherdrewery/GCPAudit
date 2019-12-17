@@ -51,13 +51,14 @@ foreach ($MGCP_Project in $projects.project_id) {
 	#Output Disks to Destination Directory
 	gcloud compute disks list --format="csv(name,zone,size_gb,type,sourceImage,users,lastAttachTimestamp)" > $MGCP_Project`_Disks.csv
 
-	#Output Commited Useage Discounts to Destination Directory
-	gcloud compute commitments list --format="csv(name,region,end_TimeStamp,status)" > $MGCP_Project`_CommitedUsageDiscount.csv
+	#Output Committed Usage Discounts to Destination Directory
+	gcloud compute commitments list --format="csv(name,region,end_TimeStamp,status)" > $MGCP_Project`_CommittedUsageDiscount.csv
 	
 	#Output Compute Instances to Destination Directory
 	gcloud compute instances list --format="csv(name,status,zone,machine_type,preemptible)" > $MGCP_Project`_ComputeInstances.csv
 }
 
+#Add Filename to last column for filtering
 Get-ChildItem *.csv | ForEach-Object {
     $CSV = Import-CSV -Path $_.FullName -Delimiter ","
     $FileName = $_.Name
@@ -65,5 +66,14 @@ Get-ChildItem *.csv | ForEach-Object {
     $CSV | Select-Object *,@{N='Filename';E={$FileName}} | Export-CSV $_.FullName -NTI -Delimiter ","
 }
 
-#Merge all API CSV into one master file
+#Merge all CSV into their own individual product master CSV file
 Get-ChildItem -Filter *_API.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_API.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_GlobalQuotas.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_GlobalQuotas.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_RegionalQuotas.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_RegionalQuotas.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_MonitoringPolicy.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_MonitoringPolicy.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_NetworkFirewallRules.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_NetworkFirewallRules.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_Snapshots.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_Snapshots.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_SSLCertificates.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_SSLCertificates.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_Disks.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_Disks.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_CommittedUsageDiscount.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_CommittedUsageDiscount.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_ComputeInstances.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_ComputeInstances.csv -NoTypeInformation -Append
