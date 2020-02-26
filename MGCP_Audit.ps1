@@ -5,10 +5,17 @@
 
 #Parameters
 $Date = Get-Date -Format yyyyMM
-$DestDir ="RAW"
+$DestDir =""
+
+#LogFile for troubleshooting/Auditing
+$LogFile = "$((Get-Date).ToString("yyyyMMdd_HHmmss"))log.txt"
+New-Item $LogFile -ItemType File -ErrorAction Stop
+Start-Transcript -path $LogFile -append -noclobber
 
 #Obtain list of GCP projects which have been allowed access
 gcloud projects list --format="csv(projectId)" > MGCP_accounts.csv
+
+#Obtain list of CloudSQL instanced
 
 $projects = Import-Csv "./MGCP_accounts.csv"
 
@@ -21,7 +28,7 @@ foreach ($MGCP_Project in $projects.project_id) {
 	gcloud services list --available --format="csv(config.title,state)" > $MGCP_Project`_API.csv
 	
 	#Output compute regions to a temporary file, de-duplicate and create new file to Destination Directory
-	gcloud compute instances list --format="csv(zone)" > "$($MGCP_Project)_ZonesTemp.csv"
+	gcloud compute instances list --format="csv(zone)" > "./$($MGCP_Project)_ZonesTemp.csv"
 	$ZonesTemp = "./$($MGCP_Project)_ZonesTemp.csv"
 	$RegionsTemp = Import-Csv $ZonesTemp | Sort-Object zone -Unique
 	$RegionsTemp | Export-Csv "$MGCP_Project`_Zones.csv" -NoTypeInformation
@@ -37,7 +44,7 @@ foreach ($MGCP_Project in $projects.project_id) {
 	gcloud compute regions describe $RegionsCsv --flatten="quotas[]" --format="csv(quotas.metric,quotas.limit,quotas.usage)" > $MGCP_Project`_RegionalQuotas.csv
 
 	#Output Monitoring Policies to Destination Directory
-	#gcloud alpha monitoring policies list --format="csv(enabled,displayName,documentation.content,mutationRecord.mutateTime,mutationRecord.mutatedBy)" > $MGCP_Project`_MonitoringPolicy.csv
+	gcloud alpha monitoring policies list --format="csv(enabled,displayName,documentation.content,mutationRecord.mutateTime,mutationRecord.mutatedBy)" > $MGCP_Project`_MonitoringPolicy.csv
 
 	#Output Firewall Rules to Destination Directory
 	gcloud compute firewall-rules list --format="csv(name,network,direction,priority,sourceRanges.list():label=SRC_RANGES,destinationRanges.list():label=DEST_RANGES,allowed[].map().firewall_rule().list():label=ALLOW,denied[].map().firewall_rule().list():label=DENY,sourceTags.list():label=SRC_TAGS,sourceServiceAccounts.list():label=SRC_SVC_ACCT,targetTags.list():label=TARGET_TAGS,targetServiceAccounts.list():label=TARGET_SVC_ACCT,disabled)" > $MGCP_Project`_NetworkFirewallRules.csv
@@ -56,6 +63,12 @@ foreach ($MGCP_Project in $projects.project_id) {
 	
 	#Output Compute Instances to Destination Directory
 	gcloud compute instances list --format="csv(name,status,zone,machine_type,preemptible)" > $MGCP_Project`_ComputeInstances.csv
+	
+	#Output CloudSQL instaces list for query
+	#gcloud sql instances list --format="csv(cloudsqlId)" > $MGCP_Project`_CloudSQLInstances.csv
+	#$CloudSQLInstancesTemp = Import-Csv "./$MGCP_Project`_CloudSQLInstances.csv"
+	#foreach ($CloudSQLInstancesTemp in $projects.project_id) {
+	
 }
 
 #Add Filename to last column for filtering
@@ -67,13 +80,21 @@ Get-ChildItem *.csv | ForEach-Object {
 }
 
 #Merge all CSV into their own individual product master CSV file
-Get-ChildItem -Filter *_API.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_API.csv -NoTypeInformation -Append
-Get-ChildItem -Filter *_GlobalQuotas.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_GlobalQuotas.csv -NoTypeInformation -Append
-Get-ChildItem -Filter *_RegionalQuotas.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_RegionalQuotas.csv -NoTypeInformation -Append
-Get-ChildItem -Filter *_MonitoringPolicy.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_MonitoringPolicy.csv -NoTypeInformation -Append
-Get-ChildItem -Filter *_NetworkFirewallRules.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_NetworkFirewallRules.csv -NoTypeInformation -Append
-Get-ChildItem -Filter *_Snapshots.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_Snapshots.csv -NoTypeInformation -Append
-Get-ChildItem -Filter *_SSLCertificates.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_SSLCertificates.csv -NoTypeInformation -Append
-Get-ChildItem -Filter *_Disks.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_Disks.csv -NoTypeInformation -Append
-Get-ChildItem -Filter *_CommittedUsageDiscount.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_CommittedUsageDiscount.csv -NoTypeInformation -Append
-Get-ChildItem -Filter *_ComputeInstances.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv .\$Date`_ComputeInstances.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_API.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv $Date`_API.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_GlobalQuotas.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv $Date`_GlobalQuotas.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_RegionalQuotas.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv $Date`_RegionalQuotas.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_MonitoringPolicy.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv $Date`_MonitoringPolicy.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_NetworkFirewallRules.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv $Date`_NetworkFirewallRules.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_Snapshots.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv $Date`_Snapshots.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_SSLCertificates.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv $Date`_SSLCertificates.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_Disks.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv $Date`_Disks.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_CommittedUsageDiscount.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv $Date`_CommittedUsageDiscount.csv -NoTypeInformation -Append
+Get-ChildItem -Filter *_ComputeInstances.csv | Select-Object -ExpandProperty FullName | Import-Csv | Export-Csv $Date`_ComputeInstances.csv -NoTypeInformation -Appendb
+
+#Tidy-up by removing all project CSV files
+foreach ($MGCP_Project in $projects.project_id) {
+Remove-Item $MGCP_Project`*.csv -Verbose -Force
+}
+
+#Tidy up list of GCP projects
+#Remove-Item MGCP_accounts.csv -Verbose -Force
